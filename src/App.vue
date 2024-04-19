@@ -14,7 +14,7 @@
             </div>
         </form>
         <div v-for="todo in todos" :key="todo.id" class="card mb-1"
-            :class="{ 'has-background-success-light' : todo.done}">
+            :class="{ 'has-background-success-light' : todo.done }">
             <div class="card-content">
                 <div class="content">
                     <div class="columns is mobile is-vcentered">
@@ -35,10 +35,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { v4 as uuidv4 } from 'uuid';
+import { ref, onMounted } from 'vue';
+/* import { v4 as uuidv4 } from 'uuid'; Нужен для простого отображение данных из FireStore DB,
+для добав. в реал. врем. не нужен. Также нужно удалить в терминале командой npm uninstall uuid */
+import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc } from "firebase/firestore";
+import { db } from './firebase';
 
+/// FB ref
+const todosCollectionRef = collection(db, "todos");
 
+///TODOS
 const todos = ref ([
    /* {
         id: 'id1',
@@ -57,11 +63,46 @@ const todos = ref ([
     }*/
 ]);
 
-//add todo
+/// GET TODOS
 
-const newtodoContent = ref('');
+/*Отображение данных из FireStore DB
 
-const addTodo = () => {
+onMounted(async () => {
+    /*const querySnapshot = await getDocs(collection(db, "todos"));
+    let fbTodos = [];
+    querySnapshot.forEach((doc) => {
+        console.log(doc.id, " => ", doc.data());
+        const todo = {
+            id: doc.id,
+            content: doc.data().content,
+            done: doc.data().done,
+        };
+        fbTodos.push(todo);
+    });
+    todos.value = fbTodos;
+})*/
+
+// Получение данных в реальном времени
+onMounted( () => {
+    onSnapshot(todosCollectionRef, (querySnapshot) => {
+        const fbTodos = [];
+        querySnapshot.forEach((doc) => {
+            const todo = {
+                id: doc.id,
+                content: doc.data().content,
+                done: doc.data().done,
+            };
+            fbTodos.push(todo);
+        });
+        todos.value = fbTodos;
+    });
+})
+
+/// ADD TODO
+
+/*const newtodoContent = ref('');
+
+/*const addTodo = () => {
     const newTodo = {
         id: uuidv4(),
         content: newtodoContent.value,
@@ -69,17 +110,34 @@ const addTodo = () => {
     };
     todos.value.unshift(newTodo);
     newtodoContent.value = '';
-};
+};*/
 
-//delete todo
+// Добавление данных в реальном времени
+const newtodoContent = ref('');
+
+const addTodo = () => {
+    addDoc(todosCollectionRef, {
+        content: newtodoContent.value,
+        done: false,
+    });
+    newtodoContent.value = '';
+}
+
+/// DELETE TODO
 const deleteTodo = (id) => {
-    todos.value = todos.value.filter((todo) => todo.id !== id);
+    //todos.value = todos.value.filter((todo) => todo.id !== id);
+    deleteDoc(doc(todosCollectionRef, id));  // Удаление данных в реальном времени
 };
 
-//toggle Done
+/// TOGGLE DONE
 const toggleDone = (id) => {
-  const index = todos.value.findIndex((todo) => todo.id === id);
-  todos.value[index].done = !todos.value[index].done;
+    const index = todos.value.findIndex((todo) => todo.id === id);
+    //todos.value[index].done = !todos.value[index].done;
+
+    // Реализация функционала mark done в двусторонней связке
+    updateDoc(doc(todosCollectionRef, id), {
+        done: !todos.value[index].done,
+    });
 };
 </script>
 
